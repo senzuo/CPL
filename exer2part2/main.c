@@ -24,7 +24,7 @@ int main(int argc, const char * argv[]) {
         " 62 ",
         "(5)",
         " ( 62  )",
-        "23 + ( 58 – 41 +   33 – 25 * 4) / (49 + 1 )"
+        "23 + ( 58 - 41 +   33 - 25 * 4) / (49 + 1 )"
     };
     
     char improperInfixExpressions[inproperTestNumbers][infixLength]= {
@@ -35,7 +35,7 @@ int main(int argc, const char * argv[]) {
         "      ",
           //spaces
         " 6 2 ",
-          //insufficient operands
+        //   //insufficient operands
         " + ",
         " 6 * 3 - ",
         " 6+4*2/ ",
@@ -48,7 +48,8 @@ int main(int argc, const char * argv[]) {
           //illegal character
         " a ",
         " 5 + b   ",
-        " 3 x 4 + 5   "
+        " 3 x 4 + 5   ",
+        // "3 * 4 5 +  "
     };
     
     char postfixExpression[infixLength];
