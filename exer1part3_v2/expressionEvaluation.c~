@@ -1,0 +1,233 @@
+#include "expressionEvaluation.h"
+#include <ctype.h>
+#include <string.h>
+
+#define INIT 	 0
+#define OPERATOR 1
+#define OPERAND  2
+
+char *getNumber(SqStack *s, char *infixExpression, char postfixExpression[], int *post_index) {
+	char ch;
+	while(isdigit(ch = *infixExpression)) {
+		postfixExpression[*post_index] = ch;
+		++(*post_index);
+		++infixExpression;
+	}
+	postfixExpression[*post_index] = '#';
+	++(*post_index);
+	return infixExpression;
+}
+
+char *getLeftBrace(SqStack *s, char *infixExpression, char postfixExpression[], int *post_index) {
+	char ch;
+	while (!StackEmpty(s) && Pop(s, &ch)){
+		if (ch != '(') {
+			postfixExpression[*post_index] = ch;
+			(*post_index)++;
+		} else {
+			return infixExpression;; 
+		}
+	}
+	return NULL;
+}
+
+void PopPriority(char postfixExpression[], int *post_index, SqStack *s, char c) {
+	char ch;
+	if (c == '+' || c == '-') {
+		while(!StackEmpty(s)) {
+			GetTop(s, &ch);
+			if (ch == '*' || ch == '/' || ch == '+' || ch == '-' || ch == '@' || ch == '$') {
+				postfixExpression[*post_index] = ch;
+				Pop(s, &ch);
+				(*post_index)++;
+			} else {
+				return;
+			}
+		}
+	}else if (c == '*' || c == '/'){
+		while(!StackEmpty(s)) {
+			GetTop(s, &ch);
+			if (ch == '*' || ch == '/' || ch == '@' || ch == '$') {
+				postfixExpression[*post_index] = ch;
+				Pop(s, &ch);
+				(*post_index)++;
+			}else {
+				return;
+			}
+		}
+	}
+}
+
+int isOperator(char ch) {
+	return ch == '+' || ch == '-' || ch == '*' || ch == '/';
+}
+
+char getLastChar(char *infixExpression, char *infixExpressionHead) {
+	infixExpression--;
+	char ch;
+	do {
+		if (!isspace(ch = *infixExpression)){
+			return ch;
+		}
+		infixExpression--;
+	}while(infixExpression != infixExpressionHead);
+	return '!';
+}
+
+char getNextChar(char *infixExpression) {
+	infixExpression++;
+	char ch;
+	do {
+		if (!isspace(ch = *infixExpression))
+			return ch;
+		infixExpression++;
+	}while(*infixExpression!='\0');
+	return '\0';
+}
+
+
+int infixToPostfix(char *infixExpression,char postfixExpression[]) {
+	char *infixExpressionHead = infixExpression;
+	int status = INIT;
+	int post_index = 0;
+	SqStack *s = (SqStack *)malloc(sizeof(SqStack));
+	InitStack(s);
+	while (*infixExpression != '\0') {
+		char ch = *infixExpression;
+		if isdigit(ch) {
+			if (status == OPERAND)	{
+				printf("Two consecutive numbers.\n");
+				return -1;
+			}
+			status = OPERAND;
+			infixExpression = getNumber(s, infixExpression, postfixExpression, &post_index);
+		} else {
+			char c;
+			char n;
+			switch (ch) {
+				case ' ':	break;
+				case '(' :	Push(s, ch);	break;
+				case '+' :	
+				case '-' :	if (status == OPERATOR && isOperator(*(infixExpression-1)) ){
+								printf("Opreator '%c' immediately follows another operator in the expression.\n", ch);
+								return -1;
+							}
+							c = getLastChar(infixExpression, infixExpressionHead);
+							n = *(infixExpression+1);
+							if (c == '(' || c == '!'|| c == '\0'){
+								if (isdigit( *(infixExpression+1)) || '(' == *(infixExpression+1) ) {
+									if (ch == '-')	Push(s, '$');
+									else	Push(s, '@');
+									break;
+								}else if(n == ' '){
+									printf("A space follows a unary plus.\n");
+									return -1;
+								}else if(isOperator(n)){
+									printf("Operator '%c' immediately follows another operator in the expression.\n", n);
+									return -1;
+								}else {
+									printf("A space follows a unary plus????.\n");
+									return -1;
+								} 
+							}
+							else 
+							{
+								PopPriority(postfixExpression, &post_index, s, ch);
+								Push(s, ch);	
+								status = OPERATOR;
+								break;
+							}
+				case '*' :
+				case '/' :	{
+								if (status == OPERATOR && *(infixExpression-1) != ' '){
+									printf("Opreator '%c' immediately follows another operator in the expression.\n", ch);
+									DestroyStack(s);
+									return -1;
+								}
+								PopPriority(postfixExpression, &post_index, s, ch);
+								Push(s, ch);	
+								status = OPERATOR;
+								break;
+							}
+				case ')' :	infixExpression = getLeftBrace(s, infixExpression, postfixExpression, &post_index);
+							if (infixExpression == NULL)	{
+								printf("Wrong expression. No matched '(' before ')'\n");
+								DestroyStack(s);
+								return -1;	
+							}
+							break;
+				default: printf("iliegal char :%c\n", ch); DestroyStack(s); return -1;
+			}
+			infixExpression++;
+		}
+		
+	}
+
+	if (status == OPERATOR) {
+		printf("Some operator without operand in the expression.\n");
+		DestroyStack(s);
+		return -1;
+	}
+	// get out the rest operator
+	while (StackEmpty(s)!=1) {
+		char ch;
+		Pop(s, &ch);
+		// no ')' so if exsit '(' wrong expression
+		if(ch == '('){
+			printf("Wrong expression. No matched ')' after '('\n");
+			DestroyStack(s);
+			return 0;
+		}
+		postfixExpression[post_index++] = ch;
+	}
+	postfixExpression[post_index++] = '\0';
+	DestroyStack(s);
+	return 1;
+}
+
+int computeValueFromPostfix(char *postfixExpression, double *value) {
+	if(strlen(postfixExpression)<=0)	{
+		printf("The input is EMPTY\n");
+		return 0;
+	}
+	*value = -1;
+	double t1, t2;
+    SqStack1* stack = (SqStack1 *)malloc(sizeof(SqStack1));
+    InitStack1(stack);
+    while(*postfixExpression != '\0') {
+        char ch = *postfixExpression;
+        if(isdigit(ch)) {
+            double i = ch - '0';
+            while(isdigit(*(postfixExpression+1))){
+                postfixExpression++;
+                i = i * 10 + (*postfixExpression) - '0';
+            }
+            Push1(stack, i);
+        } else if(ch != '#' && ch != '@'){
+        	if (ch == '$'){
+        		Pop1(stack, &t1);
+        		Push1(stack, -1*t1);
+        	}else {
+        		Pop1(stack, &t1);
+	            Pop1(stack, &t2);
+	            switch(ch) {
+	            	case '+': *value = t1 + t2;	break;
+	            	case '-': *value = t2 - t1; break;
+	            	case '*': *value = t2 * t1; break;
+	            	case '/': *value = t2 / t1;	break;
+	            	default: printf("error! \n"); return -1;
+	            }
+	            Push1(stack,*value);
+        	}
+           
+        }
+        postfixExpression++;
+    }
+    // printf("the value is %lf\n", *value);
+    // suppose top == 0
+    if(stack->top == 0){
+        Pop1(stack, value);
+    }
+    DestroyStack1(stack);
+    return 1;
+}
